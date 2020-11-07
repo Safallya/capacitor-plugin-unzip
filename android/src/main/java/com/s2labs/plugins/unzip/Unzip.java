@@ -9,7 +9,14 @@ import com.obsez.android.lib.filechooser.ChooserDialog;
 
 import net.lingala.zip4j.ZipFile;
 
+import org.json.JSONArray;
+
 import java.io.File;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
 
 @NativePlugin
 public class Unzip extends Plugin {
@@ -62,5 +69,26 @@ public class Unzip extends Plugin {
 			e.printStackTrace();
 			call.reject("Exception Occurred", e);
 		}
+	}
+
+	@PluginMethod
+	public void getAllIps(PluginCall call) {
+		JSONArray arr = new JSONArray();
+
+		try {
+			for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
+				NetworkInterface intf = en.nextElement();
+				for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
+					InetAddress inetAddress = enumIpAddr.nextElement();
+					if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+						arr.put(inetAddress.getHostAddress());
+					}
+				}
+			}
+		} catch (SocketException ignored) {
+		}
+		JSObject obj = new JSObject();
+		obj.put("ips", arr);
+		call.success(obj);
 	}
 }
