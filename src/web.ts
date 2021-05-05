@@ -9,9 +9,8 @@ export class UnzipWeb extends WebPlugin implements UnzipPlugin {
     });
   }
 
-  async echo(options: { value: string }): Promise<{ value: string }> {
-    console.log('ECHO', options);
-    return options;
+  async unzipFile(options: any): Promise<any> {
+    return null;
   }
 }
 
