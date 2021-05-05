@@ -1,6 +1,6 @@
 import Foundation
 import Capacitor
-import Zip
+import SSZipArchive
 
 /**
  * Please read the Capacitor iOS Plugin Development Guide
@@ -10,18 +10,21 @@ import Zip
 public class Unzip: CAPPlugin {
 
     @objc func unzipFile(_ call: CAPPluginCall) {
-        let path = URL(string: call.getString("path") ?? "")
+        let path = call.getString("path")?.replacingOccurrences(of: "file:///", with: "/")
         let password = call.getString("password")
-        let destination = URL(string: call.getString("destination") ?? "")
+        let destination = call.getString("destination")?.replacingOccurrences(of: "./", with: "").replacingOccurrences(of: "file:///", with: "/")
         
         if (path != nil && destination != nil) {
             do {
                 let tempFolder = "temp"
-                try Zip.unzipFile(path!, destination: destination!.appendingPathComponent(tempFolder), overwrite: true, password: password)
+                let destFolder = destination! + tempFolder + "/"
+                try? FileManager.default.createDirectory(at: URL(string: "file://" + destFolder)!, withIntermediateDirectories: true, attributes: nil)
+                try SSZipArchive.unzipFile(atPath: path!, toDestination: destFolder, overwrite: true, password: password)
                 call.success([
                     "output": tempFolder
                 ])
             } catch {
+                print("Extract Failed: \(error.localizedDescription)")
                 call.reject("Failed to extract zip", "EXTRACTION_FAILED")
             }
         } else {
