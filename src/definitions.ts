@@ -5,5 +5,5 @@ declare module '@capacitor/core' {
 }
 
 export interface UnzipPlugin {
-  echo(options: { value: string }): Promise<{ value: string }>;
+  unzipFile(options: any): Promise<any>;
 }
