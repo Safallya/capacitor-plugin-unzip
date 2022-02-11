@@ -7,7 +7,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.OpenableColumns;
-import android.util.Log;
+import android.content.pm.PackageManager;
 
 import androidx.annotation.RequiresApi;
 
