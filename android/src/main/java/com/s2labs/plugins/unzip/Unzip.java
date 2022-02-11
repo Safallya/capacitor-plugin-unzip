@@ -29,40 +29,30 @@ import java.net.SocketException;
 import java.util.Enumeration;
 
 @NativePlugin(
-  requestCodes = { Unzip.FILE_SELECT_CODE }
+  requestCodes = {
+    Unzip.FILE_SELECT_CODE,
+    Unzip.REQUEST_EXTERNAL_STORAGE_CODE,
+  }
 )
 public class Unzip extends Plugin {
   static final int REQUEST_EXTERNAL_STORAGE_CODE = 5690;
   static final int FILE_SELECT_CODE = 4721;
-
-	@PluginMethod
-	public void chooseFile(final PluginCall call) {
-		getBridge().executeOnMainThread(() -> new ChooserDialog(getBridge().getActivity())
-      .withFilter(false, false, call.getString("filter"))
-      .withChosenListener((path, pathFile) -> {
-        JSObject obj = new JSObject();
-        obj.put("path", pathFile.getAbsolutePath());
-        call.success(obj);
-      })
-      // to handle the back key pressed or clicked outside the dialog:
-      .withOnCancelListener(dialog -> call.reject("File selection cancelled", "CANCELLED"))
-      .build()
-      .show());
-	}
+  private PluginCall savedCall;
 
   @PluginMethod
   public void filePicker(PluginCall call) {
     if (!hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+      saveCall(call);
       pluginRequestPermission(Manifest.permission.READ_EXTERNAL_STORAGE, REQUEST_EXTERNAL_STORAGE_CODE);
     } else {
-      saveCall(call);
+      this.savedCall = call;
       try {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("application/zip");
-        startActivityForResult(call, Intent.createChooser(intent, "Select a File to Upload"), FILE_SELECT_CODE);
+        startActivityForResult(this.savedCall, Intent.createChooser(intent, "Select a File to Upload"), FILE_SELECT_CODE);
       } catch (android.content.ActivityNotFoundException ex) {
-        call.reject("Please install a File Manager.");
+        this.savedCall.reject("Please install a File Manager.");
       }
     }
   }
@@ -70,7 +60,6 @@ public class Unzip extends Plugin {
   @RequiresApi(api = Build.VERSION_CODES.O)
   @Override
   protected void handleOnActivityResult(int requestCode, int resultCode, Intent intent) {
-    PluginCall call = getSavedCall();
     if (resultCode == Activity.RESULT_OK ) {
       if(intent != null)  {
         Uri fileUri = intent.getData();
@@ -87,8 +76,27 @@ public class Unzip extends Plugin {
         JSObject obj = new JSObject();
         obj.put("filename", fileName);
         obj.put("uri", fileUri);
-        call.success(obj);
+        this.savedCall.success(obj);
       }
+    }
+  }
+
+  @Override
+  protected void handleRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    super.handleRequestPermissionsResult(requestCode, permissions, grantResults);
+    this.savedCall = getSavedCall();
+    if (savedCall == null) {
+      return;
+    }
+    for(int result : grantResults) {
+      if (result == PackageManager.PERMISSION_DENIED) {
+        savedCall.error("User denied permission");
+        return;
+      }
+    }
+    // Add the methods which required permission
+    if (this.savedCall.getMethodName().equals("filePicker")) {
+      filePicker(this.savedCall);
     }
   }
 
